@@ -19,6 +19,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -87,7 +89,23 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_SPI1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+
+  HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_SET);
+  const int TOTAL_PERIOD = htim1.Init.Period;
+  const int ADC_MAX = 1023;
+  const int MIN_PULSE = TOTAL_PERIOD * 5 / 100;
+  const int MAX_PULSE = TOTAL_PERIOD * 10 / 100;
+  int duty_cycle;
+  uint8_t tx_data[] = {0b00000001, 0b10000000, 0b00000000};
+  uint8_t rx_data[3];
+  int adc_value;
+  int bits_8_to_9;
+  int bits_0_to_7;
+
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
   /* USER CODE END 2 */
 
@@ -95,6 +113,26 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_RESET);
+	  HAL_SPI_TransmitReceive(&hspi1, tx_data, rx_data, 3, HAL_MAX_DELAY);
+	  bits_8_to_9 = rx_data[1];
+	  while(bits_8_to_9 > 3) { //isolates the last 2 bytes which contain the important info
+		  bits_8_to_9 -= 4;
+	  }
+	  bits_0_to_7 = rx_data[2];
+
+	  ////shift the 8th and 9th bit to the right spot by multiplying by 2^8
+	  adc_value = 256 * bits_8_to_9 + bits_0_to_7;
+	  HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_SET);
+
+	  // linearly map the adc value to a pwm width
+	  duty_cycle = MIN_PULSE + (MAX_PULSE - MIN_PULSE) * adc_value / ADC_MAX;
+	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, duty_cycle);
+
+
+
+	  HAL_Delay(10);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
