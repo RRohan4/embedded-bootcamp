@@ -94,12 +94,12 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_SET);
-  const int TOTAL_PERIOD = htim1.Init.Period;
+  const int TOTAL_PERIOD = HAL_TIM_GetAutoreload(htim1);
   const int ADC_MAX = 1023;
   const int MIN_PULSE = TOTAL_PERIOD * 5 / 100;
   const int MAX_PULSE = TOTAL_PERIOD * 10 / 100;
   int duty_cycle;
-  uint8_t tx_data[] = {0b00000001, 0b10000000, 0b00000000};
+  uint8_t tx_data[] = {0x01, 0x80, 0};
   uint8_t rx_data[3];
   int adc_value;
   int bits_8_to_9;
@@ -115,15 +115,12 @@ int main(void)
   {
 	  HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_RESET);
 	  HAL_SPI_TransmitReceive(&hspi1, tx_data, rx_data, 3, HAL_MAX_DELAY);
-	  bits_8_to_9 = rx_data[1];
-	  while(bits_8_to_9 > 3) { //isolates the last 2 bytes which contain the important info
-		  bits_8_to_9 -= 4;
-	  }
-	  bits_0_to_7 = rx_data[2];
-
-	  ////shift the 8th and 9th bit to the right spot by multiplying by 2^8
-	  adc_value = 256 * bits_8_to_9 + bits_0_to_7;
 	  HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_SET);
+
+	  bits_8_to_9 = rx_data[1] & 0x03;
+	  bits_0_to_7 = rx_data[2];
+	  //shift the 8th and 9th bit to the right spot by multiplying by 2^8
+	  adc_value = (bits_8_to_9 << 8) + bits_0_to_7;
 
 	  // linearly map the adc value to a pwm width
 	  duty_cycle = MIN_PULSE + (MAX_PULSE - MIN_PULSE) * adc_value / ADC_MAX;
