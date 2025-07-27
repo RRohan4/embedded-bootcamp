@@ -94,7 +94,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HAL_GPIO_WritePin(GPIOB, 8, GPIO_PIN_SET);
-  const int TOTAL_PERIOD = HAL_TIM_GetAutoreload(htim1);
+  const int TOTAL_PERIOD = __HAL_TIM_GetAutoreload(&htim1);
   const int ADC_MAX = 1023;
   const int MIN_PULSE = TOTAL_PERIOD * 5 / 100;
   const int MAX_PULSE = TOTAL_PERIOD * 10 / 100;
